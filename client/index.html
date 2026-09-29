@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Segnala problemi e proposte per i quartieri di Milano e sostieni le priorità della comunità.">
+    <title>La Nostra Città Il Nostro Futuro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Vai al contenuto</a>
+    <header class="site-header">
+      <a class="brand" href="#" aria-label="La Nostra Città, homepage">
+        <span class="brand-mark" aria-hidden="true">MI</span>
+        <span><strong>La Nostra Città</strong><small>Il Nostro Futuro</small></span>
+      </a>
+      <nav aria-label="Navigazione principale">
+        <a href="#segnalazioni">Segnalazioni</a>
+        <a href="#come-funziona">Come funziona</a>
+        <button id="mine-link" class="text-button hidden" type="button">Le mie segnalazioni</button>
+        <button id="moderation-link" class="text-button hidden" type="button">Moderazione</button>
+        <button id="admin-link" class="text-button hidden" type="button">Amministrazione</button>
+      </nav>
+      <div class="account-actions">
+        <button id="mine-mobile-button" class="button button-ghost mobile-only hidden" type="button">Le mie</button>
+        <span id="user-greeting" class="user-greeting hidden"></span>
+        <button id="login-button" class="button button-ghost" type="button">Accedi</button>
+        <button id="register-button" class="button button-primary" type="button">Registrati</button>
+        <button id="logout-button" class="button button-ghost hidden" type="button">Esci</button>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Insieme per Milano</p>
+          <h1>La città cambia quando la tua voce diventa una priorità.</h1>
+          <p>Segnala un problema del tuo quartiere, documentalo e unisci il tuo sostegno alle proposte della comunità.</p>
+          <div class="hero-actions">
+            <button id="hero-report-button" class="button button-accent" type="button">Crea una segnalazione</button>
+            <a class="button button-light" href="#segnalazioni">Esplora le priorità</a>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="city-card card-one"><span>9</span><small>municipi, una città</small></div>
+          <div class="city-card card-two"><span>↑</span><small>priorità condivise</small></div>
+          <svg viewBox="0 0 500 360" role="img">
+            <path d="M30 315h440M74 315V185h75v130m18 0V119h93v196m20 0V163h69v152m19 0V76h62v239" fill="none" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/>
+            <path d="M96 217h29m-29 34h29m96-93h-31m31 38h-31m31 38h-31m114-38h-21m21 36h-21m105-119h-20m20 38h-20m20 38h-20" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>
+            <circle cx="300" cy="80" r="30" fill="currentColor" opacity=".16"/>
+          </svg>
+        </div>
+      </section>
+
+      <section id="come-funziona" class="steps-section section-shell">
+        <div class="section-heading">
+          <div><p class="eyebrow">Tre passaggi</p><h2>Dalla segnalazione al cambiamento</h2></div>
+          <p>Ogni proposta è documentata, verificata e tracciabile.</p>
+        </div>
+        <div class="steps-grid">
+          <article><span>01</span><h3>Racconta</h3><p>Descrivi il problema, scegli il quartiere e indica la posizione.</p></article>
+          <article><span>02</span><h3>Documenta</h3><p>Allega almeno una fotografia o un breve video verificabile.</p></article>
+          <article><span>03</span><h3>Partecipa</h3><p>Segui lo stato e sostieni le priorità più importanti per Milano.</p></article>
+        </div>
+      </section>
+
+      <section id="segnalazioni" class="reports-section section-shell">
+        <div class="section-heading">
+          <div><p class="eyebrow">Priorità cittadine</p><h2>Segnalazioni pubbliche</h2></div>
+          <button id="new-report-button" class="button button-primary" type="button">Nuova segnalazione</button>
+        </div>
+        <form id="filters-form" class="filters" aria-label="Filtri segnalazioni">
+          <label><span>Cerca</span><input type="search" name="search" placeholder="Titolo, descrizione o via"></label>
+          <label><span>Quartiere</span><select name="neighborhoodId"><option value="">Tutti</option></select></label>
+          <label><span>Categoria</span><select name="categoryId"><option value="">Tutte</option></select></label>
+          <label><span>Stato</span><select name="statusId"><option value="">Tutti</option></select></label>
+          <label><span>Ordina</span><select name="sort"><option value="newest">Più recenti</option><option value="support">Più sostenute</option><option value="oldest">Meno recenti</option></select></label>
+          <button class="button button-dark" type="submit">Applica</button>
+        </form>
+        <div id="reports-status" class="status-message" role="status"></div>
+        <div id="reports-grid" class="reports-grid"></div>
+        <nav id="pagination" class="pagination" aria-label="Paginazione"></nav>
+      </section>
+
+      <section id="moderation-panel" class="workspace section-shell hidden">
+        <div class="section-heading"><div><p class="eyebrow">Area riservata</p><h2>Moderazione</h2></div></div>
+        <div id="moderation-list" class="workspace-list"></div>
+      </section>
+
+      <section id="mine-panel" class="workspace section-shell hidden">
+        <div class="section-heading"><div><p class="eyebrow">Area personale</p><h2>Le mie segnalazioni</h2></div></div>
+        <div id="mine-list" class="workspace-list"></div>
+      </section>
+
+      <section id="admin-panel" class="workspace section-shell hidden">
+        <div class="section-heading"><div><p class="eyebrow">Area riservata</p><h2>Amministrazione</h2></div></div>
+        <div class="admin-grid">
+          <article class="panel"><h3>Utenti</h3><div id="users-list"></div></article>
+          <article class="panel">
+            <h3>Nuovo quartiere</h3>
+            <form id="neighborhood-form" class="stack-form">
+              <label>Nome<input name="name" required minlength="2"></label>
+              <label>Municipio<input name="municipality" type="number" min="1" max="9"></label>
+              <label>Descrizione<textarea name="description"></textarea></label>
+              <button class="button button-primary">Aggiungi</button>
+            </form>
+          </article>
+          <article class="panel">
+            <h3>Nuova categoria</h3>
+            <form id="category-form" class="stack-form">
+              <label>Nome<input name="name" required minlength="2"></label>
+              <label>Descrizione<textarea name="description"></textarea></label>
+              <button class="button button-primary">Aggiungi</button>
+            </form>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer><strong>La Nostra Città, Il Nostro Futuro</strong><p>Una piattaforma civica di Insieme per Milano.</p></footer>
+
+    <dialog id="auth-dialog">
+      <button class="dialog-close" type="button" aria-label="Chiudi">×</button>
+      <div class="dialog-heading"><p class="eyebrow">Partecipa</p><h2 id="auth-title">Accedi</h2></div>
+      <form id="auth-form" class="stack-form">
+        <div id="register-fields" class="hidden">
+          <label>Nome<input name="firstName" autocomplete="given-name" minlength="2"></label>
+          <label>Cognome<input name="lastName" autocomplete="family-name" minlength="2"></label>
+          <label>Quartiere di residenza<select name="neighborhoodId"><option value="">Non specificato</option></select></label>
+        </div>
+        <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
+        <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+        <p id="password-help" class="field-help hidden">Almeno 10 caratteri, una maiuscola, una minuscola e un numero.</p>
+        <div id="auth-error" class="form-error" role="alert"></div>
+        <button class="button button-primary wide" type="submit">Continua</button>
+      </form>
+    </dialog>
+
+    <dialog id="report-dialog" class="wide-dialog">
+      <button class="dialog-close" type="button" aria-label="Chiudi">×</button>
+      <div class="dialog-heading"><p class="eyebrow">Nuova proposta</p><h2>Segnala un problema</h2></div>
+      <form id="report-form" class="stack-form" enctype="multipart/form-data">
+        <label>Titolo<input name="title" required minlength="5" maxlength="150" placeholder="Es. Illuminazione insufficiente in via..."></label>
+        <label>Descrizione<textarea name="description" required minlength="20" maxlength="5000" rows="5" placeholder="Spiega cosa succede e perché è importante intervenire"></textarea></label>
+        <div class="form-row">
+          <label>Quartiere<select name="neighborhoodId" required><option value="">Seleziona</option></select></label>
+          <label>Visibilità<select name="visibility"><option value="PUBBLICA">Nome abbreviato</option><option value="ANONIMA">Anonima</option><option value="PRIVATA">Solo comitato</option></select></label>
+        </div>
+        <fieldset><legend>Categorie</legend><div id="category-checkboxes" class="check-grid"></div></fieldset>
+        <label>Indirizzo<input name="address" maxlength="255" placeholder="Via e numero civico, facoltativo"></label>
+        <div class="form-row"><label>Latitudine<input name="latitude" type="number" step="0.000001"></label><label>Longitudine<input name="longitude" type="number" step="0.000001"></label></div>
+        <label class="upload-field">Foto o video<input name="attachments" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple required><span>JPG, PNG, WEBP, MP4, MOV o WEBM · massimo 5 file</span></label>
+        <div id="report-error" class="form-error" role="alert"></div>
+        <button class="button button-primary wide" type="submit">Invia la segnalazione</button>
+      </form>
+    </dialog>
+
+    <dialog id="detail-dialog" class="wide-dialog">
+      <button class="dialog-close" type="button" aria-label="Chiudi">×</button>
+      <div id="report-detail"></div>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
