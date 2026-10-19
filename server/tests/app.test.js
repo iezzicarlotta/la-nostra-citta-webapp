@@ -20,3 +20,13 @@ test('restituisce un errore JSON per route inesistenti', async () => {
   const response = await request(app).get('/api/non-esiste').expect(404);
   assert.equal(response.body.error.code, 'NOT_FOUND');
 });
+
+test('la lista delle segnalazioni pubbliche accetta query params validi', async () => {
+  const response = await request(app)
+    .get('/api/reports?page=1&limit=10&sort=newest')
+    .expect(200);
+
+  assert.equal(response.body.page, 1);
+  assert.equal(response.body.limit, 10);
+  assert.ok(Array.isArray(response.body.items));
+});

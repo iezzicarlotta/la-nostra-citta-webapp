@@ -6,7 +6,18 @@ export function validate(schema, source = 'body') {
     if (!result.success) {
       return next(new HttpError(400, 'Dati non validi.', 'VALIDATION_ERROR', result.error.flatten()));
     }
-    request[source] = result.data;
+
+    try {
+      Object.defineProperty(request, source, {
+        value: result.data,
+        configurable: true,
+        enumerable: true,
+        writable: true
+      });
+    } catch {
+      request[source] = result.data;
+    }
+
     next();
   };
 }
