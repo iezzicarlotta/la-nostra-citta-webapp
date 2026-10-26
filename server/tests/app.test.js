@@ -20,3 +20,8 @@ test('restituisce un errore JSON per route inesistenti', async () => {
   const response = await request(app).get('/api/non-esiste').expect(404);
   assert.equal(response.body.error.code, 'NOT_FOUND');
 });
+
+test('consente i tile OpenStreetMap nella Content Security Policy', async () => {
+  const response = await request(app).get('/api/non-esiste').expect(404);
+  assert.ok(response.headers['content-security-policy'].includes('https://*.tile.openstreetmap.org'));
+});

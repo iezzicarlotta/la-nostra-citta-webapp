@@ -2,7 +2,7 @@ import { pool } from '../config/db.js';
 
 export async function listNeighborhoods(connection = pool) {
   const [rows] = await connection.execute(
-    `SELECT id_quartiere AS id, nome AS name, descrizione AS description, municipio AS municipality
+    `SELECT id_quartiere AS id, nome AS name, descrizione AS description, municipio AS municipality, is_nil AS isNil
      FROM quartiere ORDER BY nome`
   );
   return rows;

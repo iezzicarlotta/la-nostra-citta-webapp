@@ -68,7 +68,16 @@ Webapp civica per raccogliere, verificare e ordinare le segnalazioni urbane dei 
    ```bash
    mysql -u app_user -p la_nostra_citta < database/schema/001_initial_schema.sql
    mysql -u app_user -p la_nostra_citta < database/seeds/001_reference_data.sql
+   npm run import:nil --workspace server
    ```
+
+   Per un database preesistente con colonne in formato camelCase e dati da conservare, eseguire una volta il migratore:
+
+   ```bash
+   npm run migrate:legacy --workspace server
+   ```
+
+   Per un database già in formato snake_case ma privo dei campi aggiunti successivamente, applicare invece `database/schema/002_existing_database_compatibility.sql`.
 
 5. Avviare frontend e backend:
 
@@ -132,6 +141,8 @@ Per la produzione eseguire prima `npm run build`, impostare `NODE_ENV=production
 | `POST/PUT/DELETE` | `/api/admin/categories` | amministratore |
 
 Le richieste che modificano dati devono includere l'header `x-csrf-token`, ottenuto da `GET /api/auth/csrf`, e mantenere il cookie di sessione.
+
+La ricerca indirizzi usa Nominatim e le mappe stradali OpenStreetMap; serve una connessione Internet. La mappa mostra l’attribuzione richiesta e i confini NIL provengono dal dataset comunale “NIL vigenti - PGT 2030”.
 
 ## Privacy e sicurezza
 

@@ -6,7 +6,7 @@ export const reportBodySchema = z.object({
   title: z.string().trim().min(5).max(150),
   description: z.string().trim().min(20).max(5000),
   neighborhoodId: z.coerce.number().int().positive(),
-  address: z.string().trim().max(255).optional().default(''),
+  address: z.string().trim().min(5).max(255),
   latitude: nullableCoordinate.refine((value) => value === null || (value >= -90 && value <= 90), 'Latitudine non valida.'),
   longitude: nullableCoordinate.refine((value) => value === null || (value >= -180 && value <= 180), 'Longitudine non valida.'),
   visibility: z.enum(['PUBBLICA', 'PRIVATA', 'ANONIMA']).default('PUBBLICA'),
@@ -18,8 +18,8 @@ export const reportBodySchema = z.object({
     return value;
   }, z.array(z.coerce.number().int().positive()).min(1).max(5))
 }).superRefine((value, context) => {
-  if ((value.latitude === null) !== (value.longitude === null)) {
-    context.addIssue({ code: 'custom', message: 'Latitudine e longitudine devono essere inserite insieme.' });
+  if (value.latitude === null || value.longitude === null) {
+    context.addIssue({ code: 'custom', message: 'Seleziona un punto sulla mappa per indicare la posizione.' });
   }
 });
 

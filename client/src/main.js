@@ -1,5 +1,18 @@
 import './styles.css';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerIconRetina from 'leaflet/dist/images/marker-icon-2x.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+import booleanPointInPolygon from '@turf/boolean-point-in-polygon';
 import { api, jsonBody, refreshCsrf } from './api.js';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIconRetina,
+  shadowUrl: markerShadow
+});
 
 const state = {
   user: null,
@@ -8,7 +21,12 @@ const state = {
   page: 1,
   total: 0,
   limit: 12,
-  authMode: 'login'
+  authMode: 'login',
+  nilFeatures: [],
+  reportMap: null,
+  reportMarker: null,
+  publishedMap: null,
+  addressResults: []
 };
 
 const $ = (selector, parent = document) => parent.querySelector(selector);
@@ -47,9 +65,9 @@ function updateAccountUi() {
   $('#login-button').classList.toggle('hidden', loggedIn);
   $('#register-button').classList.toggle('hidden', loggedIn);
   $('#logout-button').classList.toggle('hidden', !loggedIn);
+  $('#profile-link').classList.toggle('hidden', !loggedIn);
   $('#user-greeting').classList.toggle('hidden', !loggedIn);
   $('#user-greeting').textContent = loggedIn ? `Ciao, ${state.user.firstName}` : '';
-  $('#mine-link').classList.toggle('hidden', !loggedIn);
   $('#mine-mobile-button').classList.toggle('hidden', !loggedIn);
   const isModerator = ['MODERATORE', 'AMMINISTRATORE'].includes(state.user?.role);
   const isAdmin = state.user?.role === 'AMMINISTRATORE';
@@ -82,15 +100,146 @@ async function loadMeta() {
   populateSelect($('#filters-form [name="categoryId"]'), state.meta.categories);
   populateSelect($('#filters-form [name="statusId"]'), state.meta.statuses.filter((item) => item.publishable));
   populateSelect($('#auth-form [name="neighborhoodId"]'), state.meta.neighborhoods, 'Non specificato');
-  populateSelect($('#report-form [name="neighborhoodId"]'), state.meta.neighborhoods, 'Seleziona');
+  populateSelect($('#report-neighborhood'), state.meta.neighborhoods.filter((item) => item.isNil), 'Seleziona il quartiere');
   $('#category-checkboxes').innerHTML = state.meta.categories.map((category) => `
     <label><input type="checkbox" name="categoryIds" value="${category.id}"> ${escapeHtml(category.name)}</label>
   `).join('');
 }
 
+function normalizePlaceName(value) {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleUpperCase('it').replace(/[^A-Z0-9]+/g, ' ').trim();
+}
+
+function updateNeighborhoodFromPoint(latlng) {
+  $('#report-latitude').value = latlng.lat.toFixed(7);
+  $('#report-longitude').value = latlng.lng.toFixed(7);
+  $('#confirm-neighborhood').checked = false;
+
+  const feature = state.nilFeatures.find((item) => booleanPointInPolygon(
+    { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [latlng.lng, latlng.lat] } },
+    item
+  ));
+  const status = $('#report-map-status');
+  if (!feature) {
+    $('#report-neighborhood').value = '';
+    $('#confirm-neighborhood').disabled = true;
+    $('#confirm-neighborhood-label').textContent = 'Confermo che il quartiere selezionato è corretto';
+    status.textContent = 'La puntina è fuori dai quartieri di Milano. Spostala all’interno dei confini NIL.';
+    return;
+  }
+
+  const nilName = feature.properties.NIL;
+  const neighborhood = state.meta.neighborhoods.find((item) => item.isNil && normalizePlaceName(item.name) === normalizePlaceName(nilName));
+  if (!neighborhood) {
+    $('#report-neighborhood').value = '';
+    $('#confirm-neighborhood').disabled = true;
+    status.textContent = `La mappa indica ${nilName}, ma il quartiere non è ancora presente nel database.`;
+    return;
+  }
+  $('#report-neighborhood').value = String(neighborhood.id);
+  $('#confirm-neighborhood').disabled = false;
+  $('#confirm-neighborhood-label').textContent = `Confermo che ${neighborhood.name} è il quartiere corretto`;
+  status.textContent = `La puntina ricade nel NIL ${neighborhood.name}. Verifica e conferma il quartiere.`;
+}
+
+function moveReportMarker(latlng, zoom = false) {
+  if (!state.reportMap) return;
+  if (!state.reportMarker) {
+    state.reportMarker = L.marker(latlng, { draggable: true }).addTo(state.reportMap);
+    state.reportMarker.on('dragend', () => updateNeighborhoodFromPoint(state.reportMarker.getLatLng()));
+  } else {
+    state.reportMarker.setLatLng(latlng);
+  }
+  if (zoom) state.reportMap.setView(latlng, 17);
+  updateNeighborhoodFromPoint(latlng);
+}
+
+function resetReportLocation() {
+  if (state.reportMarker) state.reportMap.removeLayer(state.reportMarker);
+  state.reportMarker = null;
+  state.addressResults = [];
+  $('#address-results').replaceChildren();
+  $('#address-results-label').classList.add('hidden');
+  $('#report-latitude').value = '';
+  $('#report-longitude').value = '';
+  $('#report-neighborhood').value = '';
+  $('#confirm-neighborhood').checked = false;
+  $('#confirm-neighborhood').disabled = true;
+  $('#confirm-neighborhood-label').textContent = 'Confermo che il quartiere selezionato è corretto';
+  $('#address-search-status').textContent = '';
+  $('#report-map-status').textContent = 'Cerca un indirizzo oppure sposta la puntina sulla mappa.';
+  requestAnimationFrame(() => {
+    state.reportMap?.invalidateSize();
+    if (state.nilLayer) state.reportMap.fitBounds(state.nilLayer.getBounds(), { padding: [12, 12] });
+  });
+}
+
+async function initReportMap() {
+  const response = await fetch('/data/milano-nil.geojson');
+  if (!response.ok) throw new Error('Confini dei quartieri non disponibili.');
+  const geoJson = await response.json();
+  state.nilFeatures = geoJson.features;
+  state.reportMap = L.map('report-map', { scrollWheelZoom: false }).setView([45.4642, 9.19], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(state.reportMap);
+  state.nilLayer = L.geoJSON(geoJson, {
+    style: { color: '#b63862', weight: 1, opacity: .75, fillColor: '#f3dce4', fillOpacity: .1 },
+    onEachFeature: (feature, layer) => layer.bindTooltip(feature.properties.NIL)
+  }).addTo(state.reportMap);
+  state.reportMap.on('click', (event) => moveReportMarker(event.latlng));
+}
+
+async function searchAddressOnMap() {
+  const address = $('#report-address').value.trim();
+  const button = $('#search-address-button');
+  const status = $('#address-search-status');
+  if (address.length < 5) {
+    status.textContent = 'Inserisci una via e un numero civico.';
+    $('#report-address').focus();
+    return;
+  }
+  button.disabled = true;
+  status.textContent = 'Ricerca indirizzo…';
+  try {
+    const { results } = await api('/locations/search', { method: 'POST', body: jsonBody({ address }) });
+    if (!results.length) {
+      status.textContent = 'Nessun risultato. Prova a specificare meglio la via.';
+      return;
+    }
+    state.addressResults = results;
+    const select = $('#address-results');
+    select.replaceChildren(...results.map((result, index) => {
+      const option = document.createElement('option');
+      option.value = String(index);
+      option.textContent = result.displayName;
+      return option;
+    }));
+    $('#address-results-label').classList.toggle('hidden', results.length < 2);
+    const result = results[0];
+    moveReportMarker(L.latLng(result.latitude, result.longitude), true);
+    status.textContent = `${results.length} ${results.length === 1 ? 'risultato trovato' : 'risultati trovati'}. Controlla la posizione e il quartiere.`;
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function selectAddressResult() {
+  const result = state.addressResults[Number($('#address-results').value)];
+  if (!result) return;
+  moveReportMarker(L.latLng(result.latitude, result.longitude), true);
+}
+
 function reportCard(report) {
+  const photo = report.previewAttachmentId
+    ? `<div class="report-card-media"><img data-report-photo src="/api/reports/attachments/${report.previewAttachmentId}/file" alt="Foto della segnalazione: ${escapeHtml(report.title)}" loading="lazy"><span class="media-fallback hidden" data-media-fallback>Foto non disponibile</span></div>`
+    : '<div class="report-card-media"><span class="media-fallback">Nessuna foto allegata</span></div>';
   return `
     <article class="report-card">
+      ${photo}
       <div class="report-card-top">
         <span class="status-pill">${escapeHtml(report.statusName)}</span>
         <p>${escapeHtml(report.neighborhoodName)} · ${formatDate(report.createdAt)}</p>
@@ -188,10 +337,126 @@ function requireLogin(action) {
   return false;
 }
 
-function showReportForm() {
+async function showReportForm() {
   if (!requireLogin('creare una segnalazione')) return;
   $('#report-error').textContent = '';
-  openDialog($('#report-dialog'));
+  history.pushState({}, '', `${location.pathname}${location.search}#nuova-segnalazione`);
+  await syncPageRoute();
+  $('#new-report-title').focus();
+}
+
+function showPrioritySection() {
+  history.pushState({}, '', `${location.pathname}${location.search}#come-funziona`);
+  syncPageRoute();
+  $('#come-funziona').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showPublicReports() {
+  history.pushState({}, '', `${location.pathname}${location.search}#segnalazioni`);
+  syncPageRoute();
+  $('#segnalazioni').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showProfilePage() {
+  history.pushState({}, '', `${location.pathname}${location.search}#profilo`);
+  syncPageRoute();
+  $('#profile-page').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showMinePage() {
+  $('#mine-panel').classList.remove('hidden');
+  $('#mine-panel').scrollIntoView({ behavior: 'smooth' });
+  if (location.hash !== '#segnalazioni') {
+    history.pushState({}, '', `${location.pathname}${location.search}#segnalazioni`);
+  }
+}
+
+function showModerationPage() {
+  history.pushState({}, '', `${location.pathname}${location.search}#moderazione`);
+  syncPageRoute();
+  $('#moderation-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function showAdminPage() {
+  history.pushState({}, '', `${location.pathname}${location.search}#amministrazione`);
+  syncPageRoute();
+  $('#admin-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderProfilePage() {
+  if (!state.user) return;
+  const neighborhood = state.meta.neighborhoods.find((item) => item.id === state.user.neighborhoodId);
+  const passwordMask = '********';
+  $('#profile-content').innerHTML = `
+    <div class="stack-form">
+      <div class="form-row">
+        <div class="panel"><h3>Nome</h3><p>${escapeHtml(state.user.firstName || '—')}</p></div>
+        <div class="panel"><h3>Cognome</h3><p>${escapeHtml(state.user.lastName || '—')}</p></div>
+      </div>
+      <div class="form-row">
+        <div class="panel"><h3>E-mail</h3><p>${escapeHtml(state.user.email)}</p></div>
+        <div class="panel"><h3>Password</h3><p>${passwordMask}</p></div>
+      </div>
+      <div class="form-row">
+        <div class="panel"><h3>Quartiere</h3><p>${escapeHtml(neighborhood?.name || 'Non specificato')}</p></div>
+        <div class="panel"><h3>Ruolo</h3><p>${escapeHtml(state.user.role || 'CITTADINO')}</p></div>
+      </div>
+    </div>
+  `;
+}
+
+async function syncPageRoute() {
+  const currentHash = location.hash || '#segnalazioni';
+  const isReportPage = currentHash === '#nuova-segnalazione';
+  const isModerationPage = currentHash === '#moderazione';
+  const isAdminPage = currentHash === '#amministrazione';
+  const isProfilePage = currentHash === '#profilo';
+  const isPriorityPage = currentHash === '#come-funziona';
+
+  if (isReportPage && !state.user) {
+    history.replaceState({}, '', `${location.pathname}${location.search}`);
+    document.body.classList.remove('is-report-page');
+    $('#new-report-page').classList.add('hidden');
+    showAuth('login');
+    showToast('Accedi per creare una segnalazione.');
+    return;
+  }
+
+  $('#come-funziona').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || currentHash === '#segnalazioni' || currentHash === '#nuova-segnalazione');
+  $('#segnalazioni').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || isPriorityPage);
+  $('#mine-panel').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || !state.user || isPriorityPage);
+  $('#moderation-panel').classList.toggle('hidden', !isModerationPage);
+  $('#admin-panel').classList.toggle('hidden', !isAdminPage);
+  $('#new-report-page').classList.toggle('hidden', !isReportPage);
+  $('#profile-page').classList.toggle('hidden', !isProfilePage);
+  document.body.classList.toggle('is-report-page', isReportPage);
+  document.body.classList.toggle('is-workspace-page', isModerationPage || isAdminPage || isProfilePage);
+
+  if (isProfilePage && state.user) renderProfilePage();
+
+  if (isReportPage) {
+    if (!state.reportMap) await initReportMap();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      state.reportMap?.invalidateSize();
+      if (state.nilLayer && !state.reportMarker) state.reportMap.fitBounds(state.nilLayer.getBounds(), { padding: [12, 12] });
+    });
+    return;
+  }
+
+  if (isModerationPage) {
+    await loadModeration();
+    return;
+  }
+
+  if (isAdminPage) {
+    await loadAdmin();
+    return;
+  }
+
+  if (isPriorityPage) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 }
 
 async function submitReport(event) {
@@ -202,14 +467,24 @@ async function submitReport(event) {
   formData.delete('categoryIds');
   formData.set('categoryIds', JSON.stringify(categoryIds));
   if (!categoryIds.length) { $('#report-error').textContent = 'Scegli almeno una categoria.'; return; }
+  if (!$('#report-latitude').value || !$('#report-longitude').value || !$('#report-neighborhood').value) {
+    $('#report-error').textContent = 'Cerca l’indirizzo e scegli un punto dentro un quartiere NIL di Milano.';
+    return;
+  }
+  if (!$('#confirm-neighborhood').checked) {
+    $('#report-error').textContent = 'Conferma che il quartiere indicato sulla mappa è corretto.';
+    return;
+  }
   setBusy(form, true);
   $('#report-error').textContent = '';
   try {
     await api('/reports', { method: 'POST', body: formData });
     form.reset();
-    closeDialog($('#report-dialog'));
+    history.replaceState({}, '', `${location.pathname}${location.search}#segnalazioni`);
+    syncPageRoute();
     showToast('Segnalazione inviata al comitato per la verifica.');
     await loadReports(1);
+    $('#segnalazioni').scrollIntoView({ behavior: 'smooth' });
   } catch (error) {
     $('#report-error').textContent = error.message;
   } finally { setBusy(form, false); }
@@ -230,23 +505,34 @@ async function toggleSupport(button) {
 async function showDetail(id) {
   try {
     const { report } = await api(`/reports/${id}`);
+    state.publishedMap?.remove();
+    state.publishedMap = null;
     const attachments = report.attachments.map((attachment) => {
       const source = `/api/reports/attachments/${attachment.id}/file`;
       return attachment.mediaType === 'IMMAGINE'
-        ? `<img src="${source}" alt="Allegato della segnalazione: ${escapeHtml(attachment.originalName)}">`
-        : `<video src="${source}" controls aria-label="Allegato video ${escapeHtml(attachment.originalName)}"></video>`;
+        ? `<div class="attachment-item"><img data-detail-photo src="${source}" alt="Allegato della segnalazione: ${escapeHtml(attachment.originalName)}" loading="lazy"><span class="media-fallback hidden" data-media-fallback>Foto non disponibile</span></div>`
+        : `<div class="attachment-item"><video data-detail-video src="${source}" controls aria-label="Allegato video ${escapeHtml(attachment.originalName)}"></video><span class="media-fallback hidden" data-media-fallback>Video non disponibile</span></div>`;
     }).join('');
     $('#report-detail').innerHTML = `
       <div class="dialog-heading"><p class="eyebrow">${escapeHtml(report.statusName)}</p><h2>${escapeHtml(report.title)}</h2></div>
       <div class="detail-meta"><span>${escapeHtml(report.neighborhoodName)}</span><span>${formatDate(report.createdAt)}</span><span>${report.supportCount} sostegni</span>${report.authorDisplayName ? `<span>di ${escapeHtml(report.authorDisplayName)}</span>` : ''}</div>
       <div class="tag-list">${report.categories.map((category) => `<span class="tag">${escapeHtml(category)}</span>`).join('')}</div>
       <p class="detail-copy">${escapeHtml(report.description)}</p>
-      ${report.address ? `<p><strong>Posizione:</strong> ${escapeHtml(report.address)}</p>` : ''}
-      ${report.latitude !== null && report.longitude !== null ? `<p><a class="button button-small button-ghost" href="https://www.openstreetmap.org/?mlat=${report.latitude}&mlon=${report.longitude}#map=18/${report.latitude}/${report.longitude}" target="_blank" rel="noreferrer">Apri sulla mappa</a></p>` : ''}
+      ${report.latitude !== null && report.longitude !== null ? `<section class="detail-map-section"><h3>Posizione</h3>${report.address ? `<p>${escapeHtml(report.address)}</p>` : ''}<div id="published-report-map" role="application" aria-label="Mappa della segnalazione"></div><p class="map-attribution">Mappa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a></p></section>` : report.address ? `<p><strong>Posizione:</strong> ${escapeHtml(report.address)}</p>` : ''}
       <div class="attachment-grid">${attachments}</div>
       ${report.history.length ? `<h3>Storia della segnalazione</h3><div class="timeline">${report.history.map((item) => `<article><h4>${escapeHtml(item.statusName)}</h4><p>${formatDate(item.changedAt)} · ${escapeHtml(item.reason)}${item.operatorName ? ` · ${escapeHtml(item.operatorName)}` : ''}</p></article>`).join('')}</div>` : ''}
     `;
     openDialog($('#detail-dialog'));
+    if (report.latitude !== null && report.longitude !== null) {
+      const position = L.latLng(report.latitude, report.longitude);
+      state.publishedMap = L.map('published-report-map', { scrollWheelZoom: false }).setView(position, 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(state.publishedMap);
+      L.marker(position).addTo(state.publishedMap).bindPopup(escapeHtml(report.address || report.neighborhoodName));
+      requestAnimationFrame(() => state.publishedMap?.invalidateSize());
+    }
   } catch (error) { showToast(error.message); }
 }
 
@@ -336,17 +622,66 @@ function bindEvents() {
   $('#register-button').addEventListener('click', () => showAuth('register'));
   $('#hero-report-button').addEventListener('click', showReportForm);
   $('#new-report-button').addEventListener('click', showReportForm);
+  $('#priority-link').addEventListener('click', showPrioritySection);
+  $('#segnalazioni-link').addEventListener('click', showPublicReports);
+  $('#profile-link').addEventListener('click', showProfilePage);
+  $('#mine-new-report-button').addEventListener('click', showReportForm);
+  $('#report-back-button').addEventListener('click', showPublicReports);
   $('#auth-form').addEventListener('submit', submitAuth);
   $('#report-form').addEventListener('submit', submitReport);
+  $('#report-form').addEventListener('reset', resetReportLocation);
+  $('#search-address-button').addEventListener('click', searchAddressOnMap);
+  $('#address-results').addEventListener('change', selectAddressResult);
+  $('#report-address').addEventListener('input', () => {
+    if (state.reportMarker) {
+      state.reportMap.removeLayer(state.reportMarker);
+      state.reportMarker = null;
+    }
+    $('#report-latitude').value = '';
+    $('#report-longitude').value = '';
+    $('#report-neighborhood').value = '';
+    $('#confirm-neighborhood').checked = false;
+    $('#confirm-neighborhood').disabled = true;
+    $('#address-search-status').textContent = '';
+    $('#report-map-status').textContent = 'Cerca di nuovo l’indirizzo per aggiornare la puntina.';
+  });
+  $('#report-neighborhood').addEventListener('change', () => {
+    $('#confirm-neighborhood').checked = false;
+    const name = $('#report-neighborhood').selectedOptions[0]?.textContent;
+    const latitude = Number($('#report-latitude').value);
+    const longitude = Number($('#report-longitude').value);
+    const feature = state.nilFeatures.find((item) => booleanPointInPolygon(
+      { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [longitude, latitude] } },
+      item
+    ));
+    const pointNeighborhood = state.meta.neighborhoods.find((item) => item.isNil
+      && normalizePlaceName(item.name) === normalizePlaceName(feature?.properties.NIL));
+    const matchesPoint = pointNeighborhood && String(pointNeighborhood.id) === $('#report-neighborhood').value;
+    $('#confirm-neighborhood').disabled = !matchesPoint;
+    if ($('#report-neighborhood').value && matchesPoint) {
+      $('#confirm-neighborhood-label').textContent = `Confermo che ${name} è il quartiere corretto`;
+      $('#report-map-status').textContent = `Il NIL ${name} corrisponde alla posizione della puntina. Conferma la scelta.`;
+    } else if ($('#report-neighborhood').value) {
+      $('#confirm-neighborhood-label').textContent = 'Il quartiere deve corrispondere alla posizione sulla mappa';
+      $('#report-map-status').textContent = 'Sposta la puntina nel quartiere scelto per poterlo confermare.';
+    }
+  });
   $('#filters-form').addEventListener('submit', (event) => { event.preventDefault(); loadReports(1); });
+  $('#filters-form').addEventListener('change', (event) => {
+    if (event.target.matches('select')) loadReports(1);
+  });
+  let searchTimer;
+  $('#filters-form [name="search"]').addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadReports(1), 300);
+  });
   $('#logout-button').addEventListener('click', async () => {
     try { await api('/auth/logout', { method: 'POST' }); } catch (error) { showToast(error.message); }
     state.user = null; updateAccountUi(); await refreshCsrf(); await loadReports(1);
   });
-  $('#moderation-link').addEventListener('click', loadModeration);
-  $('#mine-link').addEventListener('click', loadMine);
-  $('#mine-mobile-button').addEventListener('click', loadMine);
-  $('#admin-link').addEventListener('click', loadAdmin);
+  $('#moderation-link').addEventListener('click', showModerationPage);
+  $('#mine-mobile-button').addEventListener('click', showMinePage);
+  $('#admin-link').addEventListener('click', showAdminPage);
   $('#neighborhood-form').addEventListener('submit', (event) => submitAdminEntity(event, 'neighborhoods'));
   $('#category-form').addEventListener('submit', (event) => submitAdminEntity(event, 'categories'));
   $$('.dialog-close').forEach((button) => button.addEventListener('click', () => closeDialog(button.closest('dialog'))));
@@ -363,6 +698,14 @@ function bindEvents() {
     if (page && !page.disabled) loadReports(Number(page.dataset.page));
     if (stateButton) changeState(stateButton.dataset.changeState);
   });
+  document.addEventListener('error', (event) => {
+    const media = event.target;
+    if (!media.matches?.('[data-report-photo], [data-detail-photo], [data-detail-video]')) return;
+    media.classList.add('hidden');
+    media.closest('.report-card-media, .attachment-item')?.querySelector('[data-media-fallback]')?.classList.remove('hidden');
+  }, true);
+  window.addEventListener('popstate', syncPageRoute);
+  window.addEventListener('hashchange', syncPageRoute);
   $('#users-list').addEventListener('change', (event) => {
     const row = event.target.closest('[data-user]');
     if (row) updateAdminUser(row);
@@ -373,7 +716,9 @@ async function init() {
   bindEvents();
   await refreshCsrf();
   await Promise.all([loadSession(), loadMeta()]);
+  await initReportMap();
   await loadReports(1);
+  syncPageRoute();
 }
 
 init().catch((error) => {

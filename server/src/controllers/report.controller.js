@@ -3,7 +3,7 @@ import { createReport, getAttachmentForViewer, getReportForViewer, changeReportS
 import { writeAudit } from '../repositories/audit.repository.js';
 
 export async function listReportsController(request, response) {
-  response.json(await listPublicReports(request.query, request.session?.user?.id));
+  response.json(await listPublicReports(request.validatedQuery, request.session?.user?.id));
 }
 
 export async function reportDetailController(request, response) {
@@ -11,7 +11,7 @@ export async function reportDetailController(request, response) {
 }
 
 export async function ownReportsController(request, response) {
-  response.json(await listOwnReports(request.session.user.id, request.query));
+  response.json(await listOwnReports(request.session.user.id, request.validatedQuery));
 }
 
 export async function createReportController(request, response) {
@@ -38,7 +38,7 @@ export async function attachmentController(request, response) {
 }
 
 export async function moderationListController(request, response) {
-  response.json(await listModerationReports(request.query));
+  response.json(await listModerationReports(request.validatedQuery));
 }
 
 export async function stateChangeController(request, response) {

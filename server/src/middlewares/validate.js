@@ -6,7 +6,8 @@ export function validate(schema, source = 'body') {
     if (!result.success) {
       return next(new HttpError(400, 'Dati non validi.', 'VALIDATION_ERROR', result.error.flatten()));
     }
-    request[source] = result.data;
+    if (source === 'query') request.validatedQuery = result.data;
+    else request[source] = result.data;
     next();
   };
 }

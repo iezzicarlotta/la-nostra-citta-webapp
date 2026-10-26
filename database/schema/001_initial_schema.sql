@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS quartiere (
   nome VARCHAR(100) NOT NULL UNIQUE,
   descrizione TEXT,
   municipio TINYINT UNSIGNED,
+  is_nil BOOLEAN NOT NULL DEFAULT FALSE,
   CONSTRAINT ck_quartiere_municipio CHECK (municipio IS NULL OR municipio BETWEEN 1 AND 9)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 

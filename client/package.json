@@ -10,5 +10,9 @@
   },
   "devDependencies": {
     "vite": "^7.1.12"
+  },
+  "dependencies": {
+    "@turf/boolean-point-in-polygon": "^7.4.0",
+    "leaflet": "^1.9.4"
   }
 }

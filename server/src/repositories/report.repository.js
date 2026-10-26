@@ -16,6 +16,9 @@ const reportSelect = `
   st.id_stato AS statusId,
   st.nome AS statusName,
   st.pubblicabile AS publishable,
+  (SELECT a.id_allegato FROM allegato a
+   WHERE a.id_segnalazione = s.id_segnalazione AND a.tipo_media = 'IMMAGINE'
+   ORDER BY a.data_caricamento LIMIT 1) AS previewAttachmentId,
   CASE WHEN s.visibilita = 'ANONIMA' THEN NULL ELSE CONCAT(u.nome, ' ', LEFT(u.cognome, 1), '.') END AS authorDisplayName,
   (SELECT COUNT(*) FROM sostegno so WHERE so.id_segnalazione = s.id_segnalazione) AS supportCount,
   (SELECT GROUP_CONCAT(c.nome ORDER BY c.nome SEPARATOR '||')

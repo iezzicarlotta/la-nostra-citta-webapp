@@ -11,6 +11,7 @@ import authRoutes from './routes/auth.routes.js';
 import reportRoutes from './routes/report.routes.js';
 import metaRoutes from './routes/meta.routes.js';
 import adminRoutes from './routes/admin.routes.js';
+import locationRoutes from './routes/location.routes.js';
 import { errorHandler, notFound } from './middlewares/error-handler.js';
 import { pool } from './config/db.js';
 import { MySqlSessionStore } from './config/mysql-session-store.js';
@@ -24,7 +25,14 @@ app.use(pinoHttp({
   redact: ['req.headers.cookie', 'req.headers.authorization', 'req.body.password', 'res.headers.set-cookie'],
   autoLogging: env.NODE_ENV !== 'test'
 }));
-app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-origin' } }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      imgSrc: ["'self'", 'data:', 'https://*.tile.openstreetmap.org']
+    }
+  }
+}));
 app.use(cors({ origin: env.CLIENT_ORIGIN, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '100kb' }));
@@ -52,6 +60,7 @@ app.get('/api/health', async (_request, response, next) => {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/meta', metaRoutes);
+app.use('/api/locations', locationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 

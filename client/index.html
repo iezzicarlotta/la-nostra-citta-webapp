@@ -17,14 +17,14 @@
         <span><strong>La Nostra Città</strong><small>Il Nostro Futuro</small></span>
       </a>
       <nav aria-label="Navigazione principale">
-        <a href="#segnalazioni">Segnalazioni</a>
-        <a href="#come-funziona">Come funziona</a>
-        <button id="mine-link" class="text-button hidden" type="button">Le mie segnalazioni</button>
+        <button id="priority-link" class="text-button" type="button">Priorità</button>
+        <button id="segnalazioni-link" class="text-button" type="button">Segnalazioni</button>
         <button id="moderation-link" class="text-button hidden" type="button">Moderazione</button>
         <button id="admin-link" class="text-button hidden" type="button">Amministrazione</button>
       </nav>
       <div class="account-actions">
-        <button id="mine-mobile-button" class="button button-ghost mobile-only hidden" type="button">Le mie</button>
+        <button id="mine-mobile-button" class="button button-ghost mobile-only hidden" type="button">Le mie segnalazioni</button>
+        <button id="profile-link" class="button button-ghost hidden" type="button">Profilo</button>
         <span id="user-greeting" class="user-greeting hidden"></span>
         <button id="login-button" class="button button-ghost" type="button">Accedi</button>
         <button id="register-button" class="button button-primary" type="button">Registrati</button>
@@ -77,21 +77,53 @@
           <label><span>Categoria</span><select name="categoryId"><option value="">Tutte</option></select></label>
           <label><span>Stato</span><select name="statusId"><option value="">Tutti</option></select></label>
           <label><span>Ordina</span><select name="sort"><option value="newest">Più recenti</option><option value="support">Più sostenute</option><option value="oldest">Meno recenti</option></select></label>
-          <button class="button button-dark" type="submit">Applica</button>
         </form>
         <div id="reports-status" class="status-message" role="status"></div>
         <div id="reports-grid" class="reports-grid"></div>
         <nav id="pagination" class="pagination" aria-label="Paginazione"></nav>
       </section>
 
+      <section id="mine-panel" class="workspace section-shell hidden">
+        <div class="section-heading"><div><p class="eyebrow">Area personale</p><h2>Le mie segnalazioni</h2></div><button id="mine-new-report-button" class="button button-primary" type="button">Nuova segnalazione</button></div>
+        <div id="mine-list" class="workspace-list"></div>
+      </section>
+
+      <section id="new-report-page" class="report-page section-shell hidden" aria-labelledby="new-report-title">
+        <button id="report-back-button" class="button button-ghost" type="button">← Tutte le segnalazioni</button>
+        <div class="report-page-heading">
+          <p class="eyebrow">Nuova proposta</p>
+          <h1 id="new-report-title" tabindex="-1">Segnala un problema</h1>
+          <p>Descrivi cosa succede e aggiungi una foto o un video per documentarlo.</p>
+        </div>
+        <form id="report-form" class="stack-form report-form-page" enctype="multipart/form-data">
+          <label>Titolo<input name="title" required minlength="5" maxlength="150" placeholder="Es. Illuminazione insufficiente in via..." autocomplete="off"></label>
+          <label>Descrizione<textarea name="description" required minlength="20" maxlength="5000" rows="5" placeholder="Spiega cosa succede e perché è importante intervenire"></textarea></label>
+          <div class="form-row">
+            <label>Visibilità<select name="visibility"><option value="PUBBLICA">Nome abbreviato</option><option value="ANONIMA">Anonima</option><option value="PRIVATA">Solo comitato</option></select></label>
+          </div>
+          <fieldset><legend>Categorie</legend><div id="category-checkboxes" class="check-grid"></div></fieldset>
+          <label>Via e numero civico<input id="report-address" name="address" required minlength="5" maxlength="255" placeholder="Es. Via Dante 15, Milano" autocomplete="street-address"></label>
+          <div class="location-search-row">
+            <button id="search-address-button" class="button button-primary" type="button">Cerca indirizzo sulla mappa</button>
+            <span id="address-search-status" role="status" aria-live="polite"></span>
+          </div>
+          <label id="address-results-label" class="hidden">Scegli l’indirizzo corretto<select id="address-results"></select></label>
+          <div id="report-map" role="application" aria-label="Mappa interattiva di Milano. Seleziona un punto o trascina la puntina."></div>
+          <p id="report-map-status" class="map-status" role="status" aria-live="polite">Cerca un indirizzo oppure sposta la puntina sulla mappa.</p>
+          <label>Quartiere NIL<select id="report-neighborhood" name="neighborhoodId" required><option value="">Seleziona il quartiere</option></select></label>
+          <label class="location-confirm"><input id="confirm-neighborhood" type="checkbox" required disabled><span id="confirm-neighborhood-label">Confermo che il quartiere selezionato è corretto</span></label>
+          <input id="report-latitude" name="latitude" type="hidden">
+          <input id="report-longitude" name="longitude" type="hidden">
+          <p class="map-attribution">Mappa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> · Confini NIL: Comune di Milano, PGT 2030.</p>
+          <label class="upload-field">Foto o video<input name="attachments" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple required><span>JPG, PNG, WEBP, MP4, MOV o WEBM · massimo 5 file</span></label>
+          <div id="report-error" class="form-error" role="alert"></div>
+          <button class="button button-primary wide" type="submit">Invia la segnalazione</button>
+        </form>
+      </section>
+
       <section id="moderation-panel" class="workspace section-shell hidden">
         <div class="section-heading"><div><p class="eyebrow">Area riservata</p><h2>Moderazione</h2></div></div>
         <div id="moderation-list" class="workspace-list"></div>
-      </section>
-
-      <section id="mine-panel" class="workspace section-shell hidden">
-        <div class="section-heading"><div><p class="eyebrow">Area personale</p><h2>Le mie segnalazioni</h2></div></div>
-        <div id="mine-list" class="workspace-list"></div>
       </section>
 
       <section id="admin-panel" class="workspace section-shell hidden">
@@ -117,6 +149,10 @@
           </article>
         </div>
       </section>
+      <section id="profile-page" class="workspace section-shell hidden">
+        <div class="section-heading"><div><p class="eyebrow">Profilo</p><h2>Il tuo profilo</h2></div></div>
+        <div id="profile-content" class="panel"></div>
+      </section>
     </main>
 
     <footer><strong>La Nostra Città, Il Nostro Futuro</strong><p>Una piattaforma civica di Insieme per Milano.</p></footer>
@@ -135,25 +171,6 @@
         <p id="password-help" class="field-help hidden">Almeno 10 caratteri, una maiuscola, una minuscola e un numero.</p>
         <div id="auth-error" class="form-error" role="alert"></div>
         <button class="button button-primary wide" type="submit">Continua</button>
-      </form>
-    </dialog>
-
-    <dialog id="report-dialog" class="wide-dialog">
-      <button class="dialog-close" type="button" aria-label="Chiudi">×</button>
-      <div class="dialog-heading"><p class="eyebrow">Nuova proposta</p><h2>Segnala un problema</h2></div>
-      <form id="report-form" class="stack-form" enctype="multipart/form-data">
-        <label>Titolo<input name="title" required minlength="5" maxlength="150" placeholder="Es. Illuminazione insufficiente in via..."></label>
-        <label>Descrizione<textarea name="description" required minlength="20" maxlength="5000" rows="5" placeholder="Spiega cosa succede e perché è importante intervenire"></textarea></label>
-        <div class="form-row">
-          <label>Quartiere<select name="neighborhoodId" required><option value="">Seleziona</option></select></label>
-          <label>Visibilità<select name="visibility"><option value="PUBBLICA">Nome abbreviato</option><option value="ANONIMA">Anonima</option><option value="PRIVATA">Solo comitato</option></select></label>
-        </div>
-        <fieldset><legend>Categorie</legend><div id="category-checkboxes" class="check-grid"></div></fieldset>
-        <label>Indirizzo<input name="address" maxlength="255" placeholder="Via e numero civico, facoltativo"></label>
-        <div class="form-row"><label>Latitudine<input name="latitude" type="number" step="0.000001"></label><label>Longitudine<input name="longitude" type="number" step="0.000001"></label></div>
-        <label class="upload-field">Foto o video<input name="attachments" type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime,video/webm" multiple required><span>JPG, PNG, WEBP, MP4, MOV o WEBM · massimo 5 file</span></label>
-        <div id="report-error" class="form-error" role="alert"></div>
-        <button class="button button-primary wide" type="submit">Invia la segnalazione</button>
       </form>
     </dialog>
 

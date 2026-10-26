@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
+    "dev": "node src/run-server.js --watch src/server.js",
+    "start": "node src/run-server.js src/server.js",
+    "migrate:legacy": "node src/scripts/migrate-legacy-schema.js",
+    "import:nil": "node src/scripts/import-milan-nil.js",
     "test": "node --test"
   },
   "dependencies": {

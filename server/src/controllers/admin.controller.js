@@ -7,7 +7,7 @@ import { writeAudit } from '../repositories/audit.repository.js';
 import { HttpError } from '../utils/http-error.js';
 
 export async function listUsersController(request, response) {
-  response.json(await listUsers(request.query));
+  response.json(await listUsers(request.validatedQuery));
 }
 
 export async function updateUserController(request, response) {
