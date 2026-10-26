@@ -54,6 +54,21 @@
         </div>
       </section>
 
+      <section id="home-map-section" class="map-section section-shell" aria-labelledby="home-map-title">
+        <div class="section-heading">
+          <div><p class="eyebrow">Milano, sul territorio</p><h2 id="home-map-title">Mappa delle segnalazioni</h2></div>
+          <button id="refresh-public-map" class="button button-ghost" type="button">Aggiorna mappa</button>
+        </div>
+        <div class="map-legend" aria-label="Legenda degli stati">
+          <span><i class="map-legend-dot map-legend-dot--active" aria-hidden="true"></i>In corso</span>
+          <span><i class="map-legend-dot map-legend-dot--closed" aria-hidden="true"></i>Chiusa</span>
+          <span><i class="map-legend-dot map-legend-dot--rejected" aria-hidden="true"></i>Rifiutata</span>
+        </div>
+        <div id="public-reports-map" role="application" aria-label="Mappa interattiva delle segnalazioni pubbliche a Milano"></div>
+        <p id="public-map-status" class="map-status" role="status" aria-live="polite">Caricamento delle segnalazioni sulla mappa…</p>
+        <p class="map-attribution">Mappa © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a></p>
+      </section>
+
       <section id="come-funziona" class="steps-section section-shell">
         <div class="section-heading">
           <div><p class="eyebrow">Tre passaggi</p><h2>Dalla segnalazione al cambiamento</h2></div>
@@ -105,6 +120,7 @@
           <label>Via e numero civico<input id="report-address" name="address" required minlength="5" maxlength="255" placeholder="Es. Via Dante 15, Milano" autocomplete="street-address"></label>
           <div class="location-search-row">
             <button id="search-address-button" class="button button-primary" type="button">Cerca indirizzo sulla mappa</button>
+            <button id="use-current-location" class="button button-ghost" type="button">Usa la mia posizione</button>
             <span id="address-search-status" role="status" aria-live="polite"></span>
           </div>
           <label id="address-results-label" class="hidden">Scegli l’indirizzo corretto<select id="address-results"></select></label>
@@ -151,7 +167,7 @@
       </section>
       <section id="profile-page" class="workspace section-shell hidden">
         <div class="section-heading"><div><p class="eyebrow">Profilo</p><h2>Il tuo profilo</h2></div></div>
-        <div id="profile-content" class="panel"></div>
+        <div id="profile-content" aria-live="polite"><p role="status">Caricamento del profilo…</p></div>
       </section>
     </main>
 

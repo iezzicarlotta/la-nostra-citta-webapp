@@ -127,6 +127,7 @@ Per la produzione eseguire prima `npm run build`, impostare `NODE_ENV=production
 |---|---|---|
 | `GET` | `/api/meta` | pubblico |
 | `GET` | `/api/reports` | pubblico |
+| `GET` | `/api/reports/map` | pubblico, solo segnalazioni pubblicabili con coordinate valide |
 | `GET` | `/api/reports/mine` | autenticato |
 | `GET` | `/api/reports/:id` | pubblico se approvato, altrimenti proprietario/moderatore |
 | `POST` | `/api/auth/register` | pubblico con CSRF |

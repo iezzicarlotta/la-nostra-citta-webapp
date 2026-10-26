@@ -82,6 +82,33 @@ export async function listPublicReports(filters, userId = null, connection = poo
   };
 }
 
+export async function listPublicMapReports(connection = pool) {
+  const [rows] = await connection.execute(
+    `SELECT s.id_segnalazione AS id, s.titolo AS title, s.descrizione AS description,
+            s.latitudine AS latitude, s.longitudine AS longitude, s.indirizzo AS address,
+            q.nome AS neighborhoodName, st.nome AS statusName,
+            (SELECT GROUP_CONCAT(c.nome ORDER BY c.nome SEPARATOR '||')
+             FROM segnalazione_categoria sc
+             JOIN categoria c ON c.id_categoria = sc.id_categoria
+             WHERE sc.id_segnalazione = s.id_segnalazione) AS categoryNames
+     FROM segnalazione s
+     JOIN quartiere q ON q.id_quartiere = s.id_quartiere
+     JOIN stato_segnalazione st ON st.id_stato = s.id_stato_corrente
+     WHERE st.pubblicabile = TRUE
+       AND s.visibilita IN ('PUBBLICA', 'ANONIMA')
+       AND s.latitudine IS NOT NULL AND s.longitudine IS NOT NULL
+       AND s.latitudine BETWEEN -90 AND 90
+       AND s.longitudine BETWEEN -180 AND 180
+     ORDER BY s.data_inserimento DESC`
+  );
+  return rows.map(({ categoryNames, ...row }) => ({
+    ...row,
+    latitude: Number(row.latitude),
+    longitude: Number(row.longitude),
+    categories: categoryNames ? categoryNames.split('||') : []
+  }));
+}
+
 export async function listModerationReports({ page, limit }, connection = pool) {
   const offset = (page - 1) * limit;
   const [rows] = await connection.execute(

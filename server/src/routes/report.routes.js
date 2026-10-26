@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import {
-  attachmentController, createReportController, listReportsController, moderationListController, ownReportsController,
+  attachmentController, createReportController, listReportsController, mapReportsController, moderationListController, ownReportsController,
   reportDetailController, stateChangeController, supportController, unsupportController
 } from '../controllers/report.controller.js';
 import { requireAuth, requireRole } from '../middlewares/auth.js';
@@ -15,6 +15,7 @@ const router = Router();
 router.get('/', validate(reportQuerySchema, 'query'), asyncHandler(listReportsController));
 router.get('/mine', requireAuth, validate(reportQuerySchema.pick({ page: true, limit: true }), 'query'), asyncHandler(ownReportsController));
 router.get('/moderation', requireRole('MODERATORE', 'AMMINISTRATORE'), validate(reportQuerySchema.pick({ page: true, limit: true }), 'query'), asyncHandler(moderationListController));
+router.get('/map', asyncHandler(mapReportsController));
 router.get('/:id', asyncHandler(reportDetailController));
 router.post('/', requireAuth, requireCsrf, reportUpload, validate(reportBodySchema), asyncHandler(createReportController));
 router.post('/:id/support', requireAuth, requireCsrf, asyncHandler(supportController));

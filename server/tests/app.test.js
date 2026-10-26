@@ -37,3 +37,17 @@ test('la lista delle segnalazioni pubbliche accetta query params validi', async 
   assert.equal(response.body.limit, 10);
   assert.ok(Array.isArray(response.body.items));
 });
+
+test('la mappa pubblica restituisce solo campi non sensibili e coordinate valide', async () => {
+  const response = await request(app).get('/api/reports/map').expect(200);
+  assert.ok(Array.isArray(response.body.items));
+  for (const report of response.body.items) {
+    assert.ok(Number.isFinite(report.latitude));
+    assert.ok(Number.isFinite(report.longitude));
+    assert.ok(report.latitude >= -90 && report.latitude <= 90);
+    assert.ok(report.longitude >= -180 && report.longitude <= 180);
+    assert.ok(Array.isArray(report.categories));
+    assert.equal('authorId' in report, false);
+    assert.equal('visibility' in report, false);
+  }
+});

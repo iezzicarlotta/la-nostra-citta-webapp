@@ -25,6 +25,8 @@ const state = {
   nilFeatures: [],
   reportMap: null,
   reportMarker: null,
+  publicReportsMap: null,
+  publicReportMarkers: null,
   publishedMap: null,
   addressResults: []
 };
@@ -227,6 +229,29 @@ async function searchAddressOnMap() {
   }
 }
 
+function useCurrentLocation() {
+  const button = $('#use-current-location');
+  const status = $('#report-map-status');
+  if (!navigator.geolocation) {
+    status.textContent = 'La geolocalizzazione non è disponibile in questo browser.';
+    return;
+  }
+  button.disabled = true;
+  status.textContent = 'Richiesta della posizione in corso…';
+  navigator.geolocation.getCurrentPosition(({ coords }) => {
+    const position = L.latLng(coords.latitude, coords.longitude);
+    moveReportMarker(position, true);
+    const neighborhood = $('#report-neighborhood').selectedOptions[0]?.textContent;
+    status.textContent = `Posizione selezionata: ${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}${$('#report-neighborhood').value ? ` · ${neighborhood}` : ''}. Verifica il punto sulla mappa.`;
+    button.disabled = false;
+  }, (error) => {
+    status.textContent = error.code === error.PERMISSION_DENIED
+      ? 'Permesso di posizione negato. Puoi selezionare il punto direttamente sulla mappa.'
+      : 'Posizione non disponibile. Seleziona il punto direttamente sulla mappa.';
+    button.disabled = false;
+  }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 });
+}
+
 function selectAddressResult() {
   const result = state.addressResults[Number($('#address-results').value)];
   if (!result) return;
@@ -258,6 +283,85 @@ function reportCard(report) {
       </div>
     </article>
   `;
+}
+
+function publicMapMarkerClass(statusName) {
+  if (statusName === 'Rifiutata') return 'rejected';
+  if (statusName === 'Chiusa') return 'closed';
+  return 'active';
+}
+
+function publicMapPopup(report) {
+  const popup = document.createElement('article');
+  popup.className = 'public-map-popup';
+  const title = document.createElement('h3');
+  title.textContent = report.title;
+  const description = document.createElement('p');
+  const brief = report.description.trim();
+  description.textContent = brief.length > 180 ? `${brief.slice(0, 177)}…` : brief;
+  const details = document.createElement('p');
+  details.className = 'public-map-popup-meta';
+  details.textContent = [report.categories.join(', '), report.statusName, report.neighborhoodName, report.address]
+    .filter(Boolean).join(' · ');
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'button button-small button-primary';
+  button.dataset.detail = String(report.id);
+  button.textContent = 'Visualizza segnalazione';
+  popup.append(title, description, details, button);
+  return popup;
+}
+
+async function loadPublicReportsMap() {
+  if (!state.publicReportsMap || !state.publicReportMarkers) return;
+  const status = $('#public-map-status');
+  status.textContent = 'Caricamento delle segnalazioni sulla mappa…';
+  try {
+    const { items } = await api('/reports/map');
+    const reports = items.filter((report) => Number.isFinite(report.latitude)
+      && Number.isFinite(report.longitude)
+      && report.latitude >= -90 && report.latitude <= 90
+      && report.longitude >= -180 && report.longitude <= 180);
+    state.publicReportMarkers.clearLayers();
+    const positions = [];
+    for (const report of reports) {
+      const position = L.latLng(report.latitude, report.longitude);
+      positions.push(position);
+      const markerClass = publicMapMarkerClass(report.statusName);
+      const icon = L.divIcon({
+        className: 'public-map-marker',
+        html: `<span class="public-map-marker-dot public-map-marker-dot--${markerClass}"></span>`,
+        iconSize: [24, 32],
+        iconAnchor: [12, 30],
+        popupAnchor: [0, -28]
+      });
+      L.marker(position, { icon, title: report.title, alt: report.title })
+        .bindPopup(publicMapPopup(report), { maxWidth: 320 })
+        .addTo(state.publicReportMarkers);
+    }
+    if (positions.length === 0) {
+      state.publicReportsMap.setView([45.4642, 9.19], 12);
+      status.textContent = 'Nessuna segnalazione pubblica con posizione disponibile.';
+    } else {
+      state.publicReportsMap.fitBounds(L.latLngBounds(positions), { padding: [28, 28], maxZoom: 15 });
+      status.textContent = `${positions.length} segnalazion${positions.length === 1 ? 'e pubblica visualizzata' : 'i pubbliche visualizzate'} sulla mappa.`;
+    }
+  } catch (error) {
+    status.textContent = `Mappa non aggiornata: ${error.message}`;
+  }
+}
+
+async function initPublicReportsMap() {
+  state.publicReportsMap = L.map('public-reports-map', { scrollWheelZoom: false }).setView([45.4642, 9.19], 12);
+  const tiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(state.publicReportsMap);
+  tiles.on('tileerror', () => {
+    $('#public-map-status').textContent = 'Impossibile caricare le mappe OpenStreetMap. Controlla la connessione e riprova.';
+  });
+  state.publicReportMarkers = L.layerGroup().addTo(state.publicReportsMap);
+  await loadPublicReportsMap();
 }
 
 function renderPagination() {
@@ -385,24 +489,52 @@ function showAdminPage() {
 
 function renderProfilePage() {
   if (!state.user) return;
-  const neighborhood = state.meta.neighborhoods.find((item) => item.id === state.user.neighborhoodId);
-  const passwordMask = '********';
+  const profile = state.user;
+  const accountStatus = { ATTIVO: 'Attivo', SOSPESO: 'Sospeso', ELIMINATO: 'Eliminato' }[profile.accountStatus] || 'Non specificato';
   $('#profile-content').innerHTML = `
-    <div class="stack-form">
-      <div class="form-row">
-        <div class="panel"><h3>Nome</h3><p>${escapeHtml(state.user.firstName || '—')}</p></div>
-        <div class="panel"><h3>Cognome</h3><p>${escapeHtml(state.user.lastName || '—')}</p></div>
-      </div>
-      <div class="form-row">
-        <div class="panel"><h3>E-mail</h3><p>${escapeHtml(state.user.email)}</p></div>
-        <div class="panel"><h3>Password</h3><p>${passwordMask}</p></div>
-      </div>
-      <div class="form-row">
-        <div class="panel"><h3>Quartiere</h3><p>${escapeHtml(neighborhood?.name || 'Non specificato')}</p></div>
-        <div class="panel"><h3>Ruolo</h3><p>${escapeHtml(state.user.role || 'CITTADINO')}</p></div>
-      </div>
-    </div>
+    <section class="profile-section" aria-labelledby="profile-personal-title">
+      <h3 id="profile-personal-title">Dati personali</h3>
+      <dl class="profile-grid">
+        <div><dt>Nome</dt><dd>${escapeHtml(profile.firstName || 'Non specificato')}</dd></div>
+        <div><dt>Cognome</dt><dd>${escapeHtml(profile.lastName || 'Non specificato')}</dd></div>
+        <div><dt>Indirizzo e-mail</dt><dd>${escapeHtml(profile.email || 'Non specificato')}</dd></div>
+        <div><dt>Quartiere di residenza</dt><dd>${escapeHtml(profile.neighborhoodName || 'Non specificato')}</dd></div>
+      </dl>
+    </section>
+    <section class="profile-section" aria-labelledby="profile-account-title">
+      <h3 id="profile-account-title">Account</h3>
+      <dl class="profile-grid">
+        <div><dt>Ruolo</dt><dd>${escapeHtml(profile.role || 'Non specificato')}</dd></div>
+        <div><dt>Stato</dt><dd>${escapeHtml(accountStatus)}</dd></div>
+        <div><dt>Data di registrazione</dt><dd>${profile.registeredAt ? escapeHtml(formatDate(profile.registeredAt)) : 'Non specificato'}</dd></div>
+      </dl>
+    </section>
   `;
+}
+
+async function loadProfilePage() {
+  const content = $('#profile-content');
+  content.setAttribute('aria-busy', 'true');
+  content.innerHTML = '<p role="status">Caricamento del profilo…</p>';
+  try {
+    const { user } = await api('/auth/me');
+    state.user = user;
+    updateAccountUi();
+    renderProfilePage();
+  } catch (error) {
+    if (error.code === 'AUTH_REQUIRED') {
+      state.user = null;
+      updateAccountUi();
+      history.replaceState({}, '', `${location.pathname}${location.search}#segnalazioni`);
+      await syncPageRoute();
+      showAuth('login');
+      showToast('La sessione è scaduta. Accedi di nuovo per visualizzare il profilo.');
+      return;
+    }
+    content.innerHTML = `<div class="profile-error" role="alert"><p>${escapeHtml(error.message)}</p><button class="button button-ghost" data-profile-retry type="button">Riprova</button></div>`;
+  } finally {
+    content.removeAttribute('aria-busy');
+  }
 }
 
 async function syncPageRoute() {
@@ -422,17 +554,30 @@ async function syncPageRoute() {
     return;
   }
 
-  $('#come-funziona').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || currentHash === '#segnalazioni' || currentHash === '#nuova-segnalazione');
-  $('#segnalazioni').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || isPriorityPage);
-  $('#mine-panel').classList.toggle('hidden', isReportPage || isModerationPage || isAdminPage || isProfilePage || !state.user || isPriorityPage);
+  if (isProfilePage && !state.user) {
+    history.replaceState({}, '', `${location.pathname}${location.search}#segnalazioni`);
+    showAuth('login');
+    showToast('Accedi per visualizzare il tuo profilo.');
+    return;
+  }
+
+  const isStandalonePage = isReportPage || isModerationPage || isAdminPage || isProfilePage;
+  $('#come-funziona').classList.toggle('hidden', isStandalonePage);
+  $('#segnalazioni').classList.toggle('hidden', isStandalonePage);
+  $('#mine-panel').classList.toggle('hidden', isStandalonePage || !state.user);
   $('#moderation-panel').classList.toggle('hidden', !isModerationPage);
   $('#admin-panel').classList.toggle('hidden', !isAdminPage);
   $('#new-report-page').classList.toggle('hidden', !isReportPage);
   $('#profile-page').classList.toggle('hidden', !isProfilePage);
+  $('#home-map-section').classList.toggle('hidden', isStandalonePage);
   document.body.classList.toggle('is-report-page', isReportPage);
   document.body.classList.toggle('is-workspace-page', isModerationPage || isAdminPage || isProfilePage);
+  if (!isStandalonePage) requestAnimationFrame(() => state.publicReportsMap?.invalidateSize());
 
-  if (isProfilePage && state.user) renderProfilePage();
+  if (isProfilePage && state.user) {
+    await loadProfilePage();
+    return;
+  }
 
   if (isReportPage) {
     if (!state.reportMap) await initReportMap();
@@ -483,7 +628,7 @@ async function submitReport(event) {
     history.replaceState({}, '', `${location.pathname}${location.search}#segnalazioni`);
     syncPageRoute();
     showToast('Segnalazione inviata al comitato per la verifica.');
-    await loadReports(1);
+    await Promise.all([loadReports(1), loadPublicReportsMap()]);
     $('#segnalazioni').scrollIntoView({ behavior: 'smooth' });
   } catch (error) {
     $('#report-error').textContent = error.message;
@@ -631,7 +776,9 @@ function bindEvents() {
   $('#report-form').addEventListener('submit', submitReport);
   $('#report-form').addEventListener('reset', resetReportLocation);
   $('#search-address-button').addEventListener('click', searchAddressOnMap);
+  $('#use-current-location').addEventListener('click', useCurrentLocation);
   $('#address-results').addEventListener('change', selectAddressResult);
+  $('#refresh-public-map').addEventListener('click', loadPublicReportsMap);
   $('#report-address').addEventListener('input', () => {
     if (state.reportMarker) {
       state.reportMap.removeLayer(state.reportMarker);
@@ -693,10 +840,12 @@ function bindEvents() {
     const support = event.target.closest('[data-support]');
     const page = event.target.closest('[data-page]');
     const stateButton = event.target.closest('[data-change-state]');
+    const profileRetry = event.target.closest('[data-profile-retry]');
     if (detail) showDetail(detail.dataset.detail);
     if (support) toggleSupport(support);
     if (page && !page.disabled) loadReports(Number(page.dataset.page));
     if (stateButton) changeState(stateButton.dataset.changeState);
+    if (profileRetry) loadProfilePage();
   });
   document.addEventListener('error', (event) => {
     const media = event.target;
@@ -716,6 +865,12 @@ async function init() {
   bindEvents();
   await refreshCsrf();
   await Promise.all([loadSession(), loadMeta()]);
+  await initPublicReportsMap();
+  window.setInterval(() => {
+    if (document.visibilityState === 'visible'
+      && !document.body.classList.contains('is-report-page')
+      && !document.body.classList.contains('is-workspace-page')) loadPublicReportsMap();
+  }, 60_000);
   await initReportMap();
   await loadReports(1);
   syncPageRoute();

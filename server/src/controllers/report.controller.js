@@ -1,9 +1,13 @@
-import { listModerationReports, listOwnReports, listPublicReports, addSupport, removeSupport } from '../repositories/report.repository.js';
+import { listModerationReports, listOwnReports, listPublicMapReports, listPublicReports, addSupport, removeSupport } from '../repositories/report.repository.js';
 import { createReport, getAttachmentForViewer, getReportForViewer, changeReportState } from '../services/report.service.js';
 import { writeAudit } from '../repositories/audit.repository.js';
 
 export async function listReportsController(request, response) {
   response.json(await listPublicReports(request.validatedQuery, request.session?.user?.id));
+}
+
+export async function mapReportsController(_request, response) {
+  response.json({ items: await listPublicMapReports() });
 }
 
 export async function reportDetailController(request, response) {

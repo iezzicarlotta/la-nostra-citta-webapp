@@ -71,3 +71,17 @@ test('la segnalazione richiede una posizione scelta sulla mappa', () => {
   });
   assert.equal(result.success, false);
 });
+
+test('la segnalazione rifiuta coordinate geografiche fuori intervallo', () => {
+  const result = reportBodySchema.safeParse({
+    title: 'Lampione non funzionante',
+    description: 'Il lampione davanti alla fermata non funziona da diversi giorni.',
+    neighborhoodId: '2',
+    address: 'Via Roma 1',
+    latitude: '91',
+    longitude: '9.19',
+    visibility: 'PUBBLICA',
+    categoryIds: '[2]'
+  });
+  assert.equal(result.success, false);
+});
