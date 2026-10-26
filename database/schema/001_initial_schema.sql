@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS quartiere (
   municipio TINYINT UNSIGNED,
   is_nil BOOLEAN NOT NULL DEFAULT FALSE,
   CONSTRAINT ck_quartiere_municipio CHECK (municipio IS NULL OR municipio BETWEEN 1 AND 9)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS utente (
   id_utente BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS utente (
     REFERENCES quartiere(id_quartiere) ON UPDATE CASCADE ON DELETE SET NULL,
   INDEX idx_utente_quartiere (id_quartiere_residenza),
   INDEX idx_utente_stato (stato_account)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS stato_segnalazione (
   id_stato BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -40,13 +40,13 @@ CREATE TABLE IF NOT EXISTS stato_segnalazione (
   ordine SMALLINT UNSIGNED NOT NULL UNIQUE,
   pubblicabile BOOLEAN NOT NULL DEFAULT FALSE,
   CONSTRAINT ck_stato_ordine CHECK (ordine > 0)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS categoria (
   id_categoria BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(100) NOT NULL UNIQUE,
   descrizione TEXT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS segnalazione (
   id_segnalazione BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS segnalazione (
   INDEX idx_seg_quartiere (id_quartiere),
   INDEX idx_seg_stato_quartiere_data (id_stato_corrente, id_quartiere, data_inserimento),
   INDEX idx_seg_data (data_inserimento)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS allegato (
   id_allegato BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS allegato (
   CONSTRAINT fk_all_seg FOREIGN KEY (id_segnalazione)
     REFERENCES segnalazione(id_segnalazione) ON UPDATE CASCADE ON DELETE CASCADE,
   INDEX idx_all_seg (id_segnalazione)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS segnalazione_categoria (
   id_segnalazione BIGINT UNSIGNED NOT NULL,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS segnalazione_categoria (
   CONSTRAINT fk_sc_cat FOREIGN KEY (id_categoria)
     REFERENCES categoria(id_categoria) ON DELETE RESTRICT,
   INDEX idx_sc_categoria_segnalazione (id_categoria, id_segnalazione)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS sostegno (
   id_utente BIGINT UNSIGNED NOT NULL,
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS sostegno (
   CONSTRAINT fk_sostegno_seg FOREIGN KEY (id_segnalazione)
     REFERENCES segnalazione(id_segnalazione) ON DELETE CASCADE,
   INDEX idx_sostegno_seg (id_segnalazione)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS storico_stato (
   id_storico BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -149,7 +149,7 @@ CREATE TABLE IF NOT EXISTS storico_stato (
   CONSTRAINT fk_storico_operatore FOREIGN KEY (id_utente_operatore)
     REFERENCES utente(id_utente) ON DELETE SET NULL,
   INDEX idx_storico_seg_data (id_segnalazione, data_cambio)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS analisi_ia (
   id_analisi BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -180,7 +180,7 @@ CREATE TABLE IF NOT EXISTS analisi_ia (
     REFERENCES allegato(id_allegato) ON DELETE CASCADE,
   INDEX idx_ai_seg (id_segnalazione),
   INDEX idx_ai_all (id_allegato)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS audit_log (
   id_audit BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -195,14 +195,14 @@ CREATE TABLE IF NOT EXISTS audit_log (
     REFERENCES utente(id_utente) ON DELETE SET NULL,
   INDEX idx_audit_utente_data (id_utente, data_evento),
   INDEX idx_audit_entita (entita, id_entita)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS sessione_web (
   id_sessione VARCHAR(128) PRIMARY KEY,
   dati JSON NOT NULL,
   scadenza DATETIME(3) NOT NULL,
   INDEX idx_sessione_scadenza (scadenza)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DELIMITER $$
 
